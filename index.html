@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>悲报生成器</title>
+  <style>
+    @font-face {
+      font-family: 'SmileySans';
+      src: url('SmileySans-Oblique.otf.woff2') format('woff2');
+    }
+
+    body {
+      margin: 0;
+      font-family: 'SmileySans', sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: #f4f4f4;
+    }
+
+    .container {
+      display: flex;
+      flex: 1;
+      padding: 20px;
+      box-sizing: border-box;
+      gap: 20px;
+    }
+
+    .controls {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    .preview {
+      flex: 2;
+      position: relative;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #canvasArea {
+      position: relative;
+      width: 600px;
+      height: 448px;
+    }
+
+    #bgImage {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+      border-radius: 12px;
+    }
+
+    #previewText {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 32px;
+      font-weight: bold;
+      text-align: center;
+      white-space: pre-wrap;
+      pointer-events: auto;
+      z-index: 1;
+      cursor: move;
+      user-select: none;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      background: #007bff;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    label {
+      font-size: 14px;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="controls">
+      <label>输入文字：</label>
+      <textarea id="textInput" rows="5" style="font-family: 'SmileySans'; font-size: 16px;"></textarea>
+
+      <label>字号：</label>
+      <input type="range" id="fontSize" min="16" max="72" value="32">
+
+      <label>文字颜色：</label>
+      <input type="color" id="fontColor" value="#ffffff">
+
+      <label><input type="checkbox" id="bevel"> 内斜面</label>
+      <label><input type="checkbox" id="glow"> 发光</label>
+      <label><input type="checkbox" id="shadow"> 阴影</label>
+    </div>
+
+    <div class="preview">
+      <div id="canvasArea">
+        <img id="bgImage" src="bb.png" />
+        <div id="previewText">请输入文字</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button onclick="generateImage()">生成图片并下载</button>
+    <a id="downloadLink" style="display:none;"></a>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script>
+    const textInput = document.getElementById('textInput');
+    const previewText = document.getElementById('previewText');
+    const fontSize = document.getElementById('fontSize');
+    const fontColor = document.getElementById('fontColor');
+    const bevel = document.getElementById('bevel');
+    const glow = document.getElementById('glow');
+    const shadow = document.getElementById('shadow');
+
+    function updatePreview() {
+      previewText.innerText = textInput.value;
+      previewText.style.fontSize = fontSize.value + 'px';
+      previewText.style.color = fontColor.value;
+
+      let shadows = [];
+      if (bevel.checked) {
+        shadows.push("1px 1px 1px #555", "-1px -1px 1px #999", "2px 2px 2px #333");
+      }
+      if (glow.checked) {
+        shadows.push(`0 0 10px ${fontColor.value}`, `0 0 20px ${fontColor.value}`);
+      }
+      if (shadow.checked) {
+        shadows.push("4px 4px 10px rgba(0,0,0,0.5)");
+      }
+      previewText.style.textShadow = shadows.join(", ");
+    }
+
+    textInput.addEventListener('input', updatePreview);
+    fontSize.addEventListener('input', updatePreview);
+    fontColor.addEventListener('input', updatePreview);
+    bevel.addEventListener('change', updatePreview);
+    glow.addEventListener('change', updatePreview);
+    shadow.addEventListener('change', updatePreview);
+    updatePreview();
+
+    // 拖动功能
+    let isDragging = false;
+    let offsetX, offsetY;
+
+    previewText.addEventListener('mousedown', function(e) {
+      isDragging = true;
+      offsetX = e.clientX - previewText.offsetLeft;
+      offsetY = e.clientY - previewText.offsetTop;
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (isDragging) {
+        previewText.style.left = (e.clientX - offsetX) + 'px';
+        previewText.style.top = (e.clientY - offsetY) + 'px';
+        previewText.style.transform = 'translate(0, 0)';
+      }
+    });
+
+    document.addEventListener('mouseup', function() {
+      isDragging = false;
+    });
+
+    function generateImage() {
+      html2canvas(document.getElementById('canvasArea'), {useCORS: true}).then(canvas => {
+        const link = document.getElementById('downloadLink');
+        link.href = canvas.toDataURL('image/png');
+        link.download = 'Sadnews.png';
+        link.click();
+      });
+    }
+  </script>
+</body>
+</html>
